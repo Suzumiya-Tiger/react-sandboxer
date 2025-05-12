@@ -1,19 +1,21 @@
-import { Allotment } from "allotment"
-import "allotment/dist/style.css"
+import { Allotment } from "allotment";
+import "allotment/dist/style.css";
 import Header from "./components/Header";
 import CodeEditor from "./components/CodeEditor";
 import Preview from "./components/Preview";
 export default function ReactPlayground() {
-  return <div style={{ height: '100vh' }}>
-    <Header />
-
-    <Allotment defaultSizes={[100, 100]}>
-      <Allotment.Pane minSize={200}>
-        <CodeEditor />
-      </Allotment.Pane>
-      <Allotment.Pane minSize={0}>
-        <Preview />
-      </Allotment.Pane>
-    </Allotment>
-  </div>
+  return (
+    <div style={{ height: "100vh" }}>
+      <Header />
+      {/* Allotment是react-use的组件，用于实现响应式布局 */}
+      <Allotment defaultSizes={[100, 100]}>
+        <Allotment.Pane minSize={200}>
+          <CodeEditor />
+        </Allotment.Pane>
+        <Allotment.Pane minSize={0}>
+          <Preview />
+        </Allotment.Pane>
+      </Allotment>
+    </div>
+  );
 }
