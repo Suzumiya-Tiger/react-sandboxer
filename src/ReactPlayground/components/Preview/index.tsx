@@ -4,7 +4,13 @@ import { compile } from "./compiler";
 
 import iframeRaw from "./iframe.html?raw";
 import { IMPORT_MAP_FILE_NAME } from "../../files";
-
+import { Message } from "../Message";
+interface MessageData {
+  data: {
+    type: string
+    message: string
+  }
+}
 /**
  * Preview 组件负责编译用户代码并在 iframe 中展示实时预览。
  */
@@ -12,7 +18,20 @@ export default function Preview() {
   const { files } = useContext(PlaygroundContext);
   const [compiledCode, setCompiledCode] = useState("");
   const [iframeUrl, setIframeUrl] = useState("");
+  const [error, setError] = useState('')
 
+  const handleMessage = (msg: MessageData) => {
+    const { type, message } = msg.data
+    if (type === 'ERROR') {
+      setError(message)
+    }
+  }
+  useEffect(() => {
+    window.addEventListener('message', handleMessage)
+    return () => {
+      window.removeEventListener('message', handleMessage)
+    }
+  }, [])
   useEffect(() => {
     const res = compile(files);
     setCompiledCode(res);
@@ -28,8 +47,7 @@ export default function Preview() {
         // 动态生成 import map script 标签。
         // files[IMPORT_MAP_FILE_NAME]?.value 获取 import-map.json 文件的内容。
         // ?.value 是可选链，如果文件不存在或 value 为空，则使用 || "{}" 作为备选（一个空的 JSON 对象）。
-        `<script type="importmap">${
-          files[IMPORT_MAP_FILE_NAME]?.value || "{}"
+        `<script type="importmap">${files[IMPORT_MAP_FILE_NAME]?.value || "{}"
         }</script>`
       )
       .replace(
@@ -111,11 +129,7 @@ export default function Preview() {
         sandbox="allow-scripts allow-same-origin"
         title="Preview"
       />
-      {/* <Editor file={{
-      name: 'dist.js',
-      value: compiledCode,
-      language: 'javascript'
-  }}/> */}
+      <Message type='error' content={error} />
     </div>
   );
 }

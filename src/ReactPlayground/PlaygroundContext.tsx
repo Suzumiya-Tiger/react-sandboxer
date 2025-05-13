@@ -11,12 +11,16 @@ export interface File {
 export interface Files {
   [key: string]: File;
 }
+
+export type Theme = 'light' | 'dark'
 /**
  * files的信息是以:
  * 文件标签名，文件内容，文件语言来构成一个标签对象的
  * 它的键是文件名，值是上面所说的三个元素信息
  */
 export interface PlaygroundContext {
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
   files: Files;
   selectedFileName: string;
   setSelectedFileName: (fileName: string) => void;
@@ -34,7 +38,7 @@ export const PlaygroundProvider = (props: PropsWithChildren) => {
   const { children } = props;
   const [files, setFiles] = useState<Files>(initFiles);
   const [selectedFileName, setSelectedFileName] = useState<string>("App.tsx");
-
+  const [theme, setTheme] = useState<Theme>('light')
   const addFile = (name: string) => {
     setFiles({
       ...files,
@@ -76,6 +80,8 @@ export const PlaygroundProvider = (props: PropsWithChildren) => {
   return (
     <PlaygroundContext.Provider
       value={{
+        theme,
+        setTheme,
         files,
         selectedFileName,
         setSelectedFileName,

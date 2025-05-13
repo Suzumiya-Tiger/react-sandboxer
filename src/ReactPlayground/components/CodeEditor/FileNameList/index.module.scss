@@ -7,9 +7,8 @@
   overflow-y: hidden;
   border-bottom: 1px solid #ddd;
   box-sizing: border-box;
-
-  color: #444;
-  background-color: #fff;
+  color: var(--text);
+  background-color: var(--bg);
   &::-webkit-scrollbar {
     height: 2px; /* 或者你希望的高度 */
   }
