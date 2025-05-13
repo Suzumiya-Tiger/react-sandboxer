@@ -4,6 +4,32 @@ import { ENTRY_FILE_NAME } from "../../files";
 import type { PluginObj } from "@babel/core";
 
 /**
+ * 在Babel转换代码之前进行预处理。
+ * 主要用于为JSX/TSX文件自动添加 React的导入语句，如果尚未导入的话。
+ * @param filename 文件名
+ * @param code 原始代码字符串
+ * @returns 处理后的代码字符串
+ */
+export const beforeTransformCode = (filename: string, code: string) => {
+  // 默认使用原始代码
+  let _code = code;
+  // 定义一个正则表达式，用于检测代码中是否已经导入了 React
+  // \s+ 匹配一个或多个空白字符
+  // g 表示全局匹配
+  const regexReact = /import\s+React/g;
+  // 检查文件是否以 .jsx 或 .tsx 结尾，并且代码中没有导入 React
+  if (
+    (filename.endsWith(".jsx") || filename.endsWith(".tsx")) &&
+    !regexReact.test(code)
+  ) {
+    // 如果满足条件，则在代码开头添加 React 的导入语句
+    // \n 用于换行，确保导入语句在新的一行
+    _code = `import React from 'react';\n${code}`;
+  }
+  // 返回处理后（可能被修改）的代码
+  return _code;
+};
+/**
  * 使用 Babel 转换单个文件
  * @param filename 文件名
  * @param code 文件代码
@@ -15,10 +41,11 @@ export const babelTransform = (
   code: string,
   files: Files
 ) => {
+  const _code = beforeTransformCode(filename, code);
   let result = "";
   try {
     // 调用 Babel 的 transform API
-    result = transform(code, {
+    result = transform(_code, {
       // 预设：启用 react (JSX) 和 typescript 语法转换
       presets: ["react", "typescript"],
       // 文件名：用于错误报告和 sourcemap
@@ -40,8 +67,16 @@ export const babelTransform = (
  * @param files 所有文件的映射对象
  * @param modulePath 模块导入路径 (e.g., './utils', './styles.css')
  * @returns 找到的文件对象，如果找不到则为 undefined
+ * getModuleFile函数不仅仅是返回文件名，而是返回了files对象中对应的完整文件对象
+ * 返回完整文件对象：函数最终返回的是files[moduleName]，这是一个文件对象，包含了文件的各种属性，比如：
+ * name：文件名
+ * value：文件内容（代码）
+ * language：文件类型（js,ts,jsx,tsx,css,json）
  */
-const getModuleFile = (files: Files, modulePath: string): File | undefined => {
+const getModuleFile = (
+  files: Files,
+  modulePath: string
+): Files[string] | undefined => {
   // 移除 './' 前缀
   let moduleName = modulePath.split("./").pop() || "";
   // 如果模块名不包含 '.'，说明可能省略了扩展名
@@ -75,21 +110,21 @@ const getModuleFile = (files: Files, modulePath: string): File | undefined => {
  * @param file JSON 文件对象
  * @returns 表示该 JS 模块的 Blob URL
  */
-const json2Js = (file: File): string => {
+const json2Js = (file: Files[string]): string => {
   // 创建一个导出 JSON 内容的 JS 字符串
   const js = `export default ${file.value}`;
   // 创建一个 JS 类型的 Blob
-  const blob = new Blob([js], { type: 'application/javascript' });
+  const blob = new Blob([js], { type: "application/javascript" });
   // 为 Blob 创建一个 URL
   return URL.createObjectURL(blob);
-}
+};
 
 /**
  * 将 CSS 文件内容转换为一个动态注入 <style> 标签的 JavaScript 模块的 Blob URL
  * @param file CSS 文件对象
  * @returns 表示该 JS 模块的 Blob URL
  */
-const css2Js = (file: File): string => {
+const css2Js = (file: Files[string]): string => {
   // 使用时间戳和文件名生成一个唯一的 ID
   const randomId = new Date().getTime();
   // 创建一个立即执行函数 (IIFE) 的 JS 字符串
@@ -111,10 +146,10 @@ const css2Js = (file: File): string => {
 })()
     `;
   // 创建一个 JS 类型的 Blob
-  const blob = new Blob([js], { type: 'application/javascript' });
+  const blob = new Blob([js], { type: "application/javascript" });
   // 为 Blob 创建一个 URL
   return URL.createObjectURL(blob);
-}
+};
 
 /**
  * 自定义 Babel 插件，用于解析本地模块导入
@@ -129,7 +164,7 @@ function customResolver(files: Files): PluginObj {
         // 获取导入的模块路径 (e.g., './App', 'react')
         const modulePath = path.node.source.value;
         // 只处理本地相对路径导入 (以 '.' 开头)
-        if (modulePath.startsWith('.')) {
+        if (modulePath.startsWith(".")) {
           // 查找对应的文件
           const file = getModuleFile(files, modulePath);
           // 如果找不到文件，则不做处理
@@ -138,10 +173,10 @@ function customResolver(files: Files): PluginObj {
             return;
           }
           // 根据文件类型处理
-          if (file.name.endsWith('.css')) {
+          if (file.name.endsWith(".css")) {
             // 如果是 CSS 文件，将其转换为 JS 模块 URL 并替换原始路径
             path.node.source.value = css2Js(file);
-          } else if (file.name.endsWith('.json')) {
+          } else if (file.name.endsWith(".json")) {
             // 如果是 JSON 文件，将其转换为 JS 模块 URL 并替换原始路径
             path.node.source.value = json2Js(file);
           } else {
@@ -149,7 +184,9 @@ function customResolver(files: Files): PluginObj {
             // 递归调用 babelTransform 编译该模块文件
             const compiledCode = babelTransform(file.name, file.value, files);
             // 创建包含编译后代码的 Blob URL
-            const blob = new Blob([compiledCode], { type: 'application/javascript' });
+            const blob = new Blob([compiledCode], {
+              type: "application/javascript",
+            });
             const blobUrl = URL.createObjectURL(blob);
             // 用 Blob URL 替换原始导入路径
             path.node.source.value = blobUrl;
@@ -170,8 +207,8 @@ export const compile = (files: Files): string => {
   const main = files[ENTRY_FILE_NAME];
   if (!main) {
     console.error(`入口文件 ${ENTRY_FILE_NAME} 未找到!`);
-    return '';
+    return "";
   }
   // 调用 babelTransform 编译入口文件，这将触发依赖的递归编译
   return babelTransform(ENTRY_FILE_NAME, main.value, files);
-}
+};

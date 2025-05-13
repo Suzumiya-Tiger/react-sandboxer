@@ -58,9 +58,12 @@ export const PlaygroundProvider = (props: PropsWithChildren) => {
 
     const { [oldFieldName]: value, ...rest } = files;
     const newFile = {
+      /* 因为files是React状态变量（通过useState钩子创建的），
+      updateFileName函数在执行时获取的是当前最新的状态值。
+      函数内部处理完后，再通过setFiles更新状态。 */
       [newFieldName]: {
         ...value,
-        languages: fileName2Language(newFieldName),
+        language: fileName2Language(newFieldName),
         name: newFieldName,
       },
     };
