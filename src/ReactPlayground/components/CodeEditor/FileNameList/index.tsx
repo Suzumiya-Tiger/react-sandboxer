@@ -67,7 +67,7 @@ export default function FileNameList() {
    */
   const addTab = () => {
     // 生成一个唯一的新文件名
-    const newFileName = "Comp" + Math.random().toString().slice(2, 8) + ".tsx";
+    const newFileName = "Comp" + Math.random().toString().slice(2, 6) + ".tsx";
     addFile(newFileName); // 将新文件添加到 Context
     setCreating(true); // 设置正在创建的状态，新 tab 会进入编辑模式
     setSelectedFileName(newFileName); // 将新 tab 设置为选中状态

@@ -35,7 +35,13 @@ export const beforeTransformCode = (filename: string, code: string) => {
  * @param code 文件代码
  * @param files 所有文件的映射对象
  * @returns 编译后的 JavaScript 代码，如果出错则为空字符串
+ * 
+ * babelTransform 函数是编译过程的核心。
+ * 它使用 @babel/standalone 配合 presets: ["react", "typescript"] 
+ * 来将 JSX 和 TypeScript 转换为纯 JavaScript。
+
  */
+
 export const babelTransform = (
   filename: string,
   code: string,
@@ -212,3 +218,27 @@ export const compile = (files: Files): string => {
   // 调用 babelTransform 编译入口文件，这将触发依赖的递归编译
   return babelTransform(ENTRY_FILE_NAME, main.value, files);
 };
+
+/**
+ * 监听来自主线程的消息。
+ * 当主线程通过 postMessage 发送数据时，此事件监听器会被触发。
+ * 'data' (解构自事件对象 event.data) 是主线程发送过来的实际数据，这里期望是 files 对象。
+ */
+self.addEventListener("message", async ({ data: filesToCompile }) => {
+  try {
+    // 调用原有的 compile 函数处理接收到的文件数据
+    const compiledCode = compile(filesToCompile);
+
+    // 将编译结果通过 postMessage 发送回主线程
+    self.postMessage({
+      type: "COMPILED_CODE", // 消息类型：表示编译成功
+      data: compiledCode, // 编译后的代码字符串
+    });
+  } catch (e) {
+    // 如果在编译过程中发生错误，捕获错误并将其发送回主线程
+    self.postMessage({
+      type: "ERROR", // 消息类型：表示发生错误
+      error: e, // 错误对象
+    });
+  }
+});

@@ -1,5 +1,10 @@
-import React, { createContext, useState, type PropsWithChildren } from "react";
-import { fileName2Language } from "./utils";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  type PropsWithChildren,
+} from "react";
+import { compress, fileName2Language, uncompress } from "./utils";
 import { initFiles } from "./files";
 
 export interface File {
@@ -12,7 +17,7 @@ export interface Files {
   [key: string]: File;
 }
 
-export type Theme = 'light' | 'dark'
+export type Theme = "light" | "dark";
 /**
  * files的信息是以:
  * 文件标签名，文件内容，文件语言来构成一个标签对象的
@@ -33,12 +38,22 @@ export interface PlaygroundContext {
 export const PlaygroundContext = createContext<PlaygroundContext>({
   selectedFileName: "App.tsx",
 } as PlaygroundContext);
-
+const getFilesFromUrl = () => {
+  let files: Files | undefined;
+  try {
+    // const hash = decodeURIComponent(window.location.hash.slice(1));
+    const hash = uncompress(window.location.hash.slice(1));
+    files = JSON.parse(hash);
+  } catch (error) {
+    console.error(error);
+  }
+  return files;
+};
 export const PlaygroundProvider = (props: PropsWithChildren) => {
   const { children } = props;
-  const [files, setFiles] = useState<Files>(initFiles);
+  const [files, setFiles] = useState<Files>(getFilesFromUrl() || initFiles);
   const [selectedFileName, setSelectedFileName] = useState<string>("App.tsx");
-  const [theme, setTheme] = useState<Theme>('light')
+  const [theme, setTheme] = useState<Theme>("light");
   const addFile = (name: string) => {
     setFiles({
       ...files,
@@ -76,7 +91,16 @@ export const PlaygroundProvider = (props: PropsWithChildren) => {
       ...newFile,
     });
   };
-
+  useEffect(() => {
+    const hash = compress(JSON.stringify(files));
+    /* encodeURIComponent() 是一个全局函数，用来对字符串进行 URI 编码，
+    将特殊字符（如空格、中文、标点等）转换成 %XX 的形式，以避免它们在 URL 里造成歧义或不合法
+    与 encodeURI() 不同，encodeURIComponent() 会对所有非标准字符都进行转义，
+    包括 ?、&、# 等，使得编码后的结果可以安全地放在查询串或 hash 中
+ */
+    // window.location.hash = encodeURIComponent(hash);
+    window.location.hash = hash;
+  }, [files]);
   return (
     <PlaygroundContext.Provider
       value={{

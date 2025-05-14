@@ -1,18 +1,95 @@
-# 初期准备
+# React 在线代码沙盒 (React Online Code Sandbox)
 
-## 1. 导入和工具函数
+欢迎来到本项目！这是一个功能丰富的 React 在线代码沙盒环境，允许您直接在浏览器中编写、编辑 React (支持 JSX 和 TypeScript)、HTML、CSS 和 JavaScript 代码，并实时查看预览结果。它的目标是提供一个轻量级、高效的平台，用于快速原型设计、学习 React 技术栈以及分享可交互的代码片段。
 
-```ts
-import React, { createContext, useState, type PropsWithChildren } from "react";
-import { fileName2Language } from "./utils";
+本项目使用 `pnpm` 进行包管理。
+
+## ✨ 主要特性
+
+*   **实时编辑与预览**: 代码修改即时编译并在预览窗口中反映，提供流畅的开发体验。
+*   **强大的代码编辑器**: 集成了 Monaco Editor (VS Code 的核心编辑器)，支持语法高亮、智能代码补全 (IntelliSense)、代码格式化等高级编辑功能。
+*   **JSX & TypeScript 支持**: 原生支持使用 JSX 语法和 TypeScript 语言编写 React 组件，无需额外配置。
+*   **客户端编译 (Web Worker)**: 利用 Web Worker 在后台线程中通过 Babel 将 JSX 和 TypeScript 代码编译为浏览器可执行的 JavaScript，避免阻塞主线程，保证界面流畅。
+*   **模块化支持**: 支持在沙盒内的多个文件之间使用 ES 模块导入/导出。特殊处理 CSS 和 JSON 文件的导入，将其转换为 JavaScript 模块。
+*   **自动类型获取 (ATA)**: 自动从 npm 拉取导入的第三方库的 TypeScript 类型声明文件 (`.d.ts`)，显著增强代码编辑器的智能提示和类型检查能力。
+*   **文件管理系统**: 用户可以方便地添加新文件、重命名现有文件以及删除不再需要的文件，以标签页的形式进行管理。
+*   **Import Maps 支持**: 通过 `import-map.json` 管理外部依赖 (如从 CDN 加载 React、ReactDOM)。
+*   **错误提示**: 清晰展示编译时错误和运行时错误，帮助快速定位问题。
+*   **主题切换**: 支持浅色 (Light) 和深色 (Dark) 两种界面主题，满足不同用户的偏好。
+*   **可调整布局**: 代码编辑区和预览区的大小可以通过拖动分隔条自由调整。
+*   **状态持久化与分享 (通过URL)**: 沙盒中的文件和代码状态可以通过 URL 哈希进行压缩和编码，方便分享和恢复工作区。
+
+## 🛠️ 技术栈
+
+*   **前端框架**: React (使用 Hooks 和 Context API)
+*   **语言**: TypeScript
+*   **代码编辑器**: Monaco Editor
+*   **编译**: Babel (通过 `@babel/standalone` 在 Web Worker 中运行)
+*   **构建工具/开发服务器**: Vite (利用其快速的冷启动、模块热更新以及对 `?worker` 和 `?raw` 等特殊导入的支持)
+*   **包管理**: pnpm
+*   **布局**: Allotment (用于可拖拽调整的窗格)
+*   **工具库**: lodash (用于 `debounce` 等功能)
+
+## 🚀 如何开始
+
+安装依赖 (`pnpm install`) 和启动开发服务器 (`pnpm run dev`) 
+
+项目的每个关键文件都有详尽的代码注释，配合下面的文档的讲解可以帮助你快速上手这个React Coding Sandox！
+
+# ReactPlayground
+
+`src/ReactPlayground/index.tsx` 文件定义了 `ReactPlayground` 组件，它是整个在线代码沙盒的核心布局和入口。
+
+## 主要功能与结构
+
+1.  **主题应用**：
+    *   通过 `useContext(PlaygroundContext)` 获取当前选定的主题（如 `light` 或 `dark`）。
+    *   将主题作为 CSS 类名应用到最外层的 `div` 容器上，从而实现全局主题切换。该容器高度设置为 `100vh` 以铺满整个视口。
+
+2.  **头部组件**：
+    *   渲染 `<Header />` 组件，负责展示应用的标题和一些全局操作（例如主题切换按钮）。
+
+3.  **主布局 (代码编辑区与预览区)**：
+    *   使用 `Allotment` 组件库来实现一个可调整大小的左右分割布局。
+    *   `Allotment` 的 `defaultSizes={[100, 100]}` 属性使得左右两个窗格初始时各占一半的空间。
+    *   **左侧窗格 (`Allotment.Pane`)**:
+        *   包含 `<CodeEditor />` 组件。
+        *   设置了 `minSize={200}`，确保代码编辑区不会被用户拖动得过小（最小宽度200像素）。
+    *   **右侧窗格 (`Allotment.Pane`)**:
+        *   包含 `<Preview />` 组件。
+        *   设置了 `minSize={0}`，允许用户将预览区域完全收缩。
+
+### `Allotment` 组件详解
+
+`Allotment` 是一个用于创建可调整大小的分割视图的 React 组件库。它允许用户通过拖动窗格之间的分隔条来动态改变各个区域的显示大小。
+
+**在本项目中的作用：**
+
+*   **提供灵活的布局**：将界面划分为代码编辑区和预览区两个主要部分。
+*   **提升用户体验**：用户可以根据自己的需要自由调整这两个区域的相对大小。例如，在编写代码时可以扩大编辑区，在查看结果时可以扩大预览区。
+*   **控制窗格尺寸**：通过 `minSize` 属性确保核心功能区域（如代码编辑器）不会被过度压缩，保证了可用性。
+
+**引入方式：**
+
+```typescript
+import { Allotment } from "allotment";
+import "allotment/dist/style.css"; // 必须引入其样式文件
 ```
 
-- `createContext`：用来创建一个 Context 实例，让组件树中的任意层级都能通过 `useContext` 访问同一份状态。
-- `useState`：管理局部状态。
-- `PropsWithChildren`：为 Provider 组件声明 props 类型时，让 `children` 可用而不需要手动定义。
-- `fileName2Language`：前面讲过的函数，根据文件名后缀返回语言标识（`javascript`、`typescript`、`json`、`css` 等）。
+**使用示例：**
 
-------
+```tsx
+<Allotment defaultSizes={[100, 100]}>
+  <Allotment.Pane minSize={200}>
+    {/* 左侧内容，例如代码编辑器 */}
+  </Allotment.Pane>
+  <Allotment.Pane minSize={0}>
+    {/* 右侧内容，例如预览窗口 */}
+  </Allotment.Pane>
+</Allotment>
+```
+
+通过这种方式，`ReactPlayground` 组件为用户提供了一个结构清晰、可定制化程度高的交互界面。
 
 ## 2. 类型定义
 
@@ -453,9 +530,133 @@ c. src/ReactPlayground/PlaygroundContext.tsx 文件如何使用 files.ts
 
 通过这种方式，演练场在加载时就能拥有一套预设的文件和代码，用户可以直接在此基础上进行学习和实验。
 
+# 编辑器
+
+## ATA 的应用 
+
+在 Editor/index.tsx 文件中，ATA 的应用主要体现在 handleEditorMount 函数和后续的事件监听中。
+
+1. 初始化 ATA (handleEditorMount 内):
+
+```typescript
+// src/ReactPlayground/components/CodeEditor/Editor/index.tsx
+
+// ... 其他导入和接口定义 ...
+
+export default function Editor(props: Props) {
+  const { file, onChange, options } = props;
+
+  const handleEditorMount: OnMount = (editor, monaco) => {
+    // ... 其他编辑器的设置，如快捷键、编译选项 ...
+
+    // 初始化 ATA 实例
+    // 当 ATA 下载了类型文件后，会调用这个回调函数
+    const ata = createATA((code, path) => {
+      // monaco.languages.typescript.typescriptDefaults.addExtraLib
+      // 这是 Monaco Editor 的 API，用于向 TypeScript 语言服务添加额外的库文件（在这里是类型声明文件）
+      // code: 下载到的类型声明文件内容 (字符串形式)
+      // `file://${path}`: 为这个类型声明文件指定一个 Monaco Editor 内部可识别的 URI 路径。
+      //                  'file://' 前缀是必须的，表明它是一个文件资源。
+      //                  通过这种方式，Monaco Editor 就能找到并使用这些动态下载的类型定义。
+      monaco.languages.typescript.typescriptDefaults.addExtraLib(code, `file://${path}`);
+    });
+
+    // 编辑器内容改变时触发 ATA
+    // 当用户在编辑器中输入或修改代码时，这个事件会被触发
+    editor.onDidChangeModelContent(() => {
+      // editor.getValue() 获取编辑器当前全部的代码内容
+      // 将当前代码传递给 ATA 实例函数
+      // ATA 会分析这些代码中的 import 语句 (例如 import React from 'react')
+      // 如果发现有它不认识的包（即没有对应的类型声明），它会尝试从网络上（通常是 npm）下载这些包的 @types 类型声明文件。
+      ata(editor.getValue());
+    });
+
+    // 编辑器初次加载时也触发一次 ATA
+    // 这样可以确保编辑器一加载进来，就会对当前已有的代码进行类型获取尝试。
+    ata(editor.getValue());
+  };
+
+  return (
+    <MonacoEditor
+      // ... 其他 MonacoEditor props ...
+      onMount={handleEditorMount} // 将 handleEditorMount 传递给 onMount 回调
+      // ...
+    />
+  );
+}
+```
+
+### 实现思路
+
+- 创建 ATA 实例:
+
+- 在 handleEditorMount (当 Monaco Editor 实例准备好时调用) 函数内部，首先调用从 ata.ts 导入的 createATA 函数。
+
+- createATA 需要一个回调函数 onDownloadFile作为参数。**这个回调函数的作用是将 ATA 下载回来的类型声明文件内容注册到 Monaco Editor 的 TypeScript 语言服务中。**
+
+- 具体做法是使用 `monaco.languages.typescript.typescriptDefaults.addExtraLib(code, \file://\${path}\)`。
+
+- code 是类型文件的文本内容。
+
+- path 是类型文件在虚拟环境中的路径（例如 node_modules/@types/react/index.d.ts）。**`file://${path}` 格式化这个路径，使其成为 Monaco Editor 可以识别的资源标识符。**
+
+- addExtraLib 的作用就是告诉 Monaco 的 TypeScript 编译器：“这里有一份额外的代码（类型定义），请你也把它考虑进去。”
+
+- 触发 ATA 工作:
+
+- 内容改变时: `editor.onDidChangeModelContent(() => { ata(editor.getValue()); })` 这行代码设置了一个监听器。每当编辑器中的内容发生改变（用户输入、删除、粘贴等），就会获取编辑器内的全部代码 (editor.getValue())，并将其传递给 ata 函数。ATA 随后会分析代码中的 import 语句，识别出需要获取类型定义的库，并开始下载过程。
+
+- 初次加载时: ata(editor.getValue()) 在 handleEditorMount 的末尾直接调用一次。这确保了当编辑器首次加载已有代码时，ATA 也会立即尝试为这些代码获取类型定义，而不是等到用户第一次编辑时才开始。
+
+### 工作流程总结
+
+1. 编辑器加载完成 (onMount):
+
+- createATA 被调用，返回一个 ata 函数实例。此实例配置了当类型文件下载后如何将其添加到 Monaco 的 TypeScript 环境。
+
+2. 用户编辑代码或编辑器初次加载内容:
+
+- **ata(editor.getValue()) 被调用。**
+
+- **ATA 内部的 setupTypeAcquisition 逻辑开始分析传入的代码字符串。**
+
+- **它会查找代码中的 import 或 require 语句，例如 `import React from 'react';` 或 `import _ from 'lodash';`。**
+
+- **对于它识别出的模块名（如 react, lodash），它会尝试去获取对应的 @types/react 或 @types/lodash 类型声明包。**
+
+3. ATA 下载类型文件:
+
+- 如果需要，ATA会通过网络从 DefinitelyTyped (通常通过 npm registry) 下载缺失的 .d.ts 文件。
+
+- **这个过程由 @typescript/ata 库在后台处理。**
+
+4. receivedFile 回调触发:
+
+- 每当一个类型文件成功下载，setupTypeAcquisition 中配置的 delegate.receivedFile 方法会被调用。
+
+- 在 ata.ts 中，这个方法会进一步调用我们传给 createATA 的 onDownloadFile 回调。
+
+5. 类型注入 Monaco:
+
+- 在 Editor/index.tsx 的 onDownloadFile 回调（即 `(code, path) => { monaco.languages.typescript.typescriptDefaults.addExtraLib(code, \file://\${path}\); }）`中，下载到的类型代码 (code) 和其对应的路径 (path) 被用来调用 addExtraLib。
+
+6. 智能提示增强:
+
+- 一旦类型声明被添加到 Monaco 的 TypeScript 语言服务中，用户在编辑器中编写代码时就能获得更准确的自动补全、参数信息提示、类型检查和错误高亮等功能，即使这些库的类型定义不是项目本地安装的。
+
+**通过这种方式，ATA 极大地增强了在线代码编辑器（如基于 Monaco Editor 构建的 Playground）对第三方库的 TypeScript 支持，使得开发者体验更接近于本地 IDE。**
 
 
-# 编辑器和预览区
+
+
+
+
+
+
+
+
+
+# 编译和预览
 
 ## 实时编译
 
@@ -986,7 +1187,7 @@ return URL.createObjectURL(new Blob([res], { type: "text/html" }));
 
 4. 为什么要使用 iframe 来展示生成代码？
 
-在代码游乐场（Playground）或在线代码编辑器这类应用中，使用 iframe 来展示用户代码的运行结果是一个非常常见且推荐的做法，主要有以下几个原因：
+在代码沙盒或在线代码编辑器这类应用中，使用 iframe 来展示用户代码的运行结果是一个非常常见且推荐的做法，主要有以下几个原因：
 
 - 环境隔离 (Isolation):
 
@@ -1098,6 +1299,152 @@ iframe 元素有一个 sandbox 属性，可以用来对 iframe 中加载的内�
 ### 总结
 
 这段代码通过 getIframeUrl 动态生成包含最新代码和依赖映射的 HTML 内容，并为其创建 Blob URL。然后，useEffect 监听代码和 import map 的变化，在它们更新时，重新调用 getIframeUrl 来生成新的 URL 并更新 iframe 的 src，从而实现实时预览。同时，通过 URL.revokeObjectURL 进行细致的内存管理，确保临时 URL 占用的资源能够被及时释放。
+
+## Worker的代码渲染原理
+
+，Preview/index.tsx 将整个 files 对象（包含了项目中所有文件的代码）都传递给了 compiler.worker.ts。然而，预览区域最终展示的内容，是由编译流程的入口文件及其依赖关系决定的，而不是直接渲染用户当前在编辑器中选中的那个文件。
+
+让我们梳理一下这个流程：
+
+数据传递 (Preview/index.tsx):
+
+```typescript
+    // src/ReactPlayground/components/Preview/index.tsx
+    useEffect(
+      debounce(() => {
+        if (compilerWorkerRef.current && files) {
+          // 将整个 files 对象发送给 Worker
+          compilerWorkerRef.current.postMessage(files);
+        }
+      }, 500),
+      [files] // 当任何文件内容或文件列表变化时，重新发送
+    );
+```
+
+这里，只要 files 对象发生任何变化（例如，用户修改了任何一个文件的代码，或者添加/删除了文件），整个 files 对象都会被发送到 Web Worker。
+
+Worker 内部的编译起点 (compiler.worker.ts)
+
+```typescript
+    // src/ReactPlayground/components/Preview/compiler.worker.ts
+
+    import { ENTRY_FILE_NAME } from "../../files";
+
+    export const compile = (files: Files): string => {
+      // 1. 获取入口文件对象
+      const main = files[ENTRY_FILE_NAME]; // 关键点：编译从固定的入口文件开始
+      if (!main) {
+        console.error(`入口文件 ${ENTRY_FILE_NAME} 未找到!`);
+        return "";
+      }
+      // 2. 调用 babelTransform 编译入口文件，这将触发其依赖的递归编译
+      return babelTransform(ENTRY_FILE_NAME, main.value, files);
+    };
+
+    self.addEventListener("message", async ({ data: filesToCompile }) => {
+      // filesToCompile 就是从主线程接收到的完整的 files 对象
+      const compiledCode = compile(filesToCompile);
+      self.postMessage({
+        type: "COMPILED_CODE",
+        data: compiledCode,
+      });
+      // ... error handling ...
+    });
+```
+
+在 Worker 内部：
+
+- compile 函数是编译的总入口。
+
+- 它首先会查找一个预定义的入口文件，这个文件名由常量 ENTRY_FILE_NAME 指定（在你的项目中，这通常是 "main.tsx"）。
+
+- 然后，它调用 babelTransform 来编译这个入口文件 (main.tsx)。
+
+- babelTransform 内部的 customResolver 插件会处理 main.tsx 中的 import 语句。如果 main.tsx 导入了其他模块（例如 import App from './App'），customResolver 会在传入的完整 files 对象中查找这些被导入的文件（如 App.tsx），并递归地调用 babelTransform 来编译它们。
+
+预览内容的决定因素:
+
+- 预览区渲染的是 ENTRY_FILE_NAME (例如 main.tsx) 执行后的结果。
+
+- 如果 main.tsx 的内容是
+
+```typescript
+        // main.tsx
+        import React from 'react';
+        import ReactDOM from 'react-dom/client';
+        import App from './App'; // 导入 App.tsx
+        import './styles.css';   // 导入样式
+
+        ReactDOM.createRoot(document.getElementById('root')!).render(
+          <React.StrictMode>
+            <App /> {/* 渲染 App 组件 */}
+          </React.StrictMode>,
+        );
+```
+
+那么，即使用户当前在编辑器中打开并编辑的是 utils.ts 或者一个不相关的组件文件，预览区也依然会尝试编译并运行 main.tsx。如果 main.tsx 成功导入并渲染了 App 组件，那么预览区就会显示 App 组件的内容。
+
+为什么这么设计？
+
+- 模拟真实应用行为: 一个典型的 Web 应用总是有一个明确的入口点（如 index.js 或 main.ts），整个应用从这个入口文件开始加载和执行。Playground 试图模拟这种行为。
+
+- **处理依赖关系: 预览不仅仅是显示单个文件的内容，而是要能够运行一个可能由多个文件组成的“微型项目”。编译过程需要从入口文件开始，解析其所有依赖项（直接和间接的），并将它们全部编译和“链接”在一起，形成一个可执行的包。**
+
+- **提供完整的上下文: 将所有文件都传递给 Worker，使得 Babel 的 customResolver 能够解析项目内部的任意相对导入。如果只传递当前选中的文件，解析器将无法找到该文件导入的其他本地模块。**
+
+总结：
+
+- 主线程确实将所有文件 (files) 都传递给了 Worker。
+
+- **Worker 并不是渲染用户当前选中的文件，而是始终从一个固定的入口文件 (ENTRY_FILE_NAME) 开始编译。**
+
+- 预览区显示的是这个入口文件及其所有依赖项被编译和执行后所渲染出的内容。
+
+- 用户在编辑器中选择哪个文件，主要影响的是代码编辑区域显示哪个文件的内容，以及当该文件被修改时会触发整个 files 对象的更新，进而重新编译和刷新预览。
+
+所以，即使用户选中 MyComponent.tsx 并编辑它，只要 main.tsx (或者通过一系列导入链) 最终会使用到 MyComponent.tsx，那么预览就会相应地更新。如果 MyComponent.tsx 没有被入口文件或其依赖引用，那么即使编辑了它，预览内容（如果其他部分不变）可能不会直接反映 MyComponent.tsx 的独立渲染结果，除非它是 main.tsx 渲染流程的一部分。
+
+### 选中文件的一些注意点
+
+典型工作流的焦点：
+
+在日常开发中，你可能大部分时间都在编辑那些构成应用主要可视部分的组件（如 App.tsx 或其子组件）。由于这些文件都与主入口文件紧密相连，所以预览的更新会非常直观地反映你正在编辑的内容。
+
+关键在于编译的起点是固定的：
+
+在 compiler.worker.ts 中，compile 函数明确地从 ENTRY_FILE_NAME 开始：
+
+```typescript
+// src/ReactPlayground/components/Preview/compiler.worker.ts
+import { ENTRY_FILE_NAME } from "../../files"; // 通常是 "main.tsx"
+
+export const compile = (files: Files): string => {
+  const main = files[ENTRY_FILE_NAME]; // 编译始终从这个入口文件开始
+  if (!main) {
+    // ...
+    return "";
+  }
+  return babelTransform(ENTRY_FILE_NAME, main.value, files); // 编译入口文件及其依赖
+};
+```
+
+
+
+当你切换编辑器中的文件标签时，selectedFileName 状态会改变，这主要用于告诉 CodeEditor 组件应该显示哪个文件的内容供你编辑。但是，这个 selectedFileName 并不会被直接用作 Preview 组件的渲染目标或编译入口。Preview 组件始终依赖于从 main.tsx (或你项目中定义的 ENTRY_FILE_NAME) 开始的完整编译结果。
+
+设想一个场景：
+
+如果你的项目中有一个文件 UnusedComponent.tsx，它定义了一个组件，但这个组件没有被 main.tsx 或其任何依赖项导入和使用。那么：
+
+- 当你在编辑器中选中并编辑 UnusedComponent.tsx 时，files 对象会更新，触发重新编译。
+
+- 但是，由于 UnusedComponent.tsx 不在从 main.tsx 开始的依赖树中，它的内容或改变不会影响 compile 函数返回的 compiledCode（除非有其他间接方式）。
+
+- 因此，Preview 窗口的显示内容（由 main.tsx 决定）不会改变，也不会单独显示 UnusedComponent.tsx 的渲染结果。
+
+总结来说：
+
+预览窗口显示的是整个应用（从固定入口文件 ENTRY_FILE_NAME 开始）的渲染结果。你观察到的“选中哪个文件就预览哪个文件”的现象，是因为你选中的文件通常是这个应用渲染树的一部分，所以它的变化会通过重新编译整个应用而体现在预览中。系统并不是设计为独立预览任意选中的、与主应用可能无关的单个文件。
 
 
 
@@ -1475,27 +1822,535 @@ export const FileNameItem: React.FC<FileNameItemProps> = props => {
 
 
 
+# 错误提示与主题切换
+
+## 错误提示机制
+
+项目中的错误（或警告）信息通过 `Message` 组件进行展示。
+
+### 1. `Message` 组件
+
+-   **位置**: `src/ReactPlayground/components/Message/index.tsx`
+-   **样式**: `src/ReactPlayground/components/Message/index.module.scss`
+
+```typescript
+import classnames from "classnames";
+import React, { useEffect, useState } from "react";
+
+import styles from "./index.module.scss";
+
+/**
+ * @interface MessageProps
+ * @description Message 组件的 props 类型定义
+ * @property {'error' | 'warn'} type - 消息的类型，可以是 'error' 或 'warn'。
+ * @property {string} content - 消息的具体内容，支持 HTML。
+ */
+export interface MessageProps {
+  type: "error" | "warn";
+  content: string;
+}
+
+/**
+ * @component Message
+ * @description 一个用于显示错误或警告信息的组件。
+ * @param {MessageProps} props - 组件的 props。
+ * @returns {React.ReactElement | null} - 如果 content 为空，则返回 null，否则返回消息组件。
+ */
+export const Message: React.FC<MessageProps> = props => {
+  const { type, content } = props;
+  // 控制消息组件是否可见的状态
+  const [visible, setVisible] = useState(false);
+
+  // 当 content prop 发生变化时，更新 visible 状态
+  // 如果 content 有内容，则显示消息；否则隐藏。
+  useEffect(() => {
+    setVisible(!!content);
+  }, [content]);
+
+  // 如果不可见，则不渲染任何内容
+  return visible ? (
+    // 使用 classnames 根据消息类型 (type) 和基础样式 (styles.msg) 合并 className
+    <div className={classnames(styles.msg, styles[type])}>
+      {/* 使用 pre 标签来保留内容的格式，并通过 dangerouslySetInnerHTML 渲染 HTML 内容 */}
+      <pre dangerouslySetInnerHTML={{ __html: content }}></pre>
+      {/* 关闭按钮，点击时将 visible 设置为 false 来隐藏消息 */}
+      <button className={styles.dismiss} onClick={() => setVisible(false)}>
+        ✕
+      </button>
+    </div>
+  ) : null;
+};
+
+```
 
 
 
+**功能**:
+
+-   该组件用于在界面底部显示一个可关闭的通知条，用于展示错误或警告信息。
+-   它接收 `type` ('error' | 'warn') 和 `content` (字符串, 支持HTML) 作为 props。
+-   当 `content` prop 不为空时，消息框可见；为空则隐藏。
+-   用户可以通过点击消息框右上角的 '✕' 按钮关闭消息。
+
+**样式**:
+
+```scss
+.msg {
+  position: absolute;
+  right: 8px;
+  bottom: 50px;
+  left: 8px;
+  z-index: 10;
+
+  display: flex;
+  max-height: calc(100% - 300px);
+  min-height: 40px;
+  margin-bottom: 8px;
+  color: var(--color);
+
+  background-color: var(--bg-color);
+  border: 2px solid #fff;
+  border-radius: 6px;
+
+  border-color: var(--color);
+
+  &.error {
+    --color: #f56c6c;
+    --bg-color: #fef0f0;
+  }
+
+  &.warn {
+    --color: #e6a23c;
+    --bg-color: #fdf6ec;
+  }
+}
+
+pre {
+  padding: 12px 20px;
+  margin: 0;
+  overflow: auto;
+  white-space: break-spaces;
+}
+
+.dismiss {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+
+  display: block;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+
+  font-size: 9px;
+  line-height: 18px;
+  color: var(--bg-color);
+
+  text-align: center;
+  cursor: pointer;
+  background-color: var(--color);
+  border: none;
+  border-radius: 9px;
+}
+```
+
+-   消息框的样式（颜色、背景）根据 `type` prop 动态改变。
+-   使用了 CSS 自定义属性 (CSS Variables) `--color` 和 `--bg-color` 来定义不同类型消息的颜色方案，这些变量在 `.error` 和 `.warn` 类中被覆盖。
+
+### 2. 如何触发错误展示
+
+错误信息的捕获和传递主要通过以下机制实现，尤其是在预览区域 (`Preview` 组件):
+
+**a. 监听来自 `iframe` 的错误消息:**
+
+-   在 `src/ReactPlayground/components/Preview/index.tsx` 组件中，通过 `window.addEventListener('message', handleMessage)` 来监听从 `iframe` 内部通过 `postMessage` 发送过来的消息。
+-   `handleMessage` 函数会检查接收到的消息。如果消息的 `data.type` 是 `'ERROR'`，则会将 `data.message` 作为错误内容。
+
+    ```typescript
+    // src/ReactPlayground/components/Preview/index.tsx
+    // ...
+    const [error, setError] = useState('');
+    
+    const handleMessage = (msg: MessageEvent) => { // 注意：实际项目中 msg 的类型应为 MessageEvent<any> 或更具体的类型
+      if (msg.data && msg.data.type === 'ERROR') {
+        setError(msg.data.message);
+      }
+    };
+    
+    useEffect(() => {
+      window.addEventListener('message', handleMessage);
+      return () => {
+        window.removeEventListener('message', handleMessage);
+      };
+    }, []);
+    // ...
+    ```
+
+**b. 在 `iframe` 内部捕获并发送错误消息:**
+
+-   `src/ReactPlayground/components/Preview/iframe.html` 文件中内联了一段脚本，该脚本是 `iframe` 内部错误捕获和上报的核心。
+-   它通过 `window.addEventListener('error', callback)` 监听 `iframe` 内部全局未捕获的 JavaScript 运行时错误。
+-   当错误发生时，事件监听器的回调函数会执行，并通过 `window.parent.postMessage()` 将错误信息发送给父窗口（即 `Preview` 组件所在的窗口）。
+
+    ```html
+    <!-- src/ReactPlayground/components/Preview/iframe.html -->
+    <script>
+      window.addEventListener('error', (e) => {
+        window.parent.postMessage({
+          type: 'ERROR',        // 消息类型，表明这是一个错误信息
+          message: e.message    // 具体的错误消息内容
+        }, '*')                // targetOrigin 设置为 '*' 表示允许发送到任意源的父窗口
+      })
+    </script>
+    ```
+    这样，当用户在 `Preview` 中运行的代码（即在 `iframe` 中执行的 `appSrc` 脚本）抛出未捕获的错误时，这个全局错误处理器会捕获它，并将错误消息传递给父页面的 `Preview` 组件。
+
+    *注意：`compiler.ts` 中的 `babelTransform` 函数本身会在编译阶段捕获错误并 `console.error`，但 `iframe.html` 中的脚本主要处理的是编译后代码的运行时错误。*
+
+**c. 将错误状态传递给 `Message` 组件:**
+
+-   `Preview` 组件将捕获到的错误信息存储在 `error` state 中。
+-   然后，它将这个 `error` state 作为 `content` prop 传递给 `Message` 组件进行显示。
+
+    ```tsx
+    // src/ReactPlayground/components/Preview/index.tsx
+    // ...
+    return (
+      <div style={{ height: "100%" }}>
+        <iframe
+          // ... iframe props ...
+        />
+        <Message type='error' content={error} />
+      </div>
+    );
+    // ...
+    ```
+
+通过这种方式，当 `iframe` 中的代码执行出错时，`iframe.html` 内的脚本会捕获该错误，将错误信息发送到父窗口的 `Preview` 组件，`Preview` 组件更新其 `error`状态，从而触发 `Message` 组件显示该错误。
+
+## 主题切换机制
+
+应用支持浅色 (light) 和深色 (dark) 主题之间的切换。
+
+### 1. 状态管理
+
+-   主题的状态（当前是 'light' 还是 'dark'）和切换主题的方法 (`setTheme`) 由 `PlaygroundContext` 管理。
+    ```tsx
+    // 在 PlaygroundContext.tsx (或类似文件) 中，你需要扩展 Context 来包含主题状态
+    export interface PlaygroundContext {
+      // ... 其他已有的属性和方法 ...
+      theme: 'light' | 'dark';
+      setTheme: (theme: 'light' | 'dark') => void;
+    }
+    
+    // 在 PlaygroundProvider 中
+    // const [theme, setTheme] = useState<'light' | 'dark'>('light'); // 初始主题
+    // ... 将 theme 和 setTheme 加入到 context value 中 ...
+    ```
+
+### 2. 触发切换
+
+-   **位置**: `src/ReactPlayground/components/Header/index.tsx`
+-   组件 `Header` 从 `PlaygroundContext` 中获取当前的 `theme` 和 `setTheme` 方法。
+-   它根据当前主题显示不同的图标（`SunOutlined` 代表浅色主题下可切换至深色，`MoonOutlined` 代表深色主题下可切换至浅色）。
+-   点击这些图标会调用 `setTheme` 方法，并传入新的主题名称 ('dark' 或 'light') 来更新 `PlaygroundContext` 中的主题状态。
+
+```tsx
+// src/ReactPlayground/components/Header/index.tsx 部分代码
+// ...
+const { theme, setTheme } = useContext(PlaygroundContext);
+// ...
+{theme === 'light' && <MoonOutlined className={styles.theme} onClick={() => setTheme('dark')} />}
+{theme === 'dark' && <SunOutlined className={styles.theme} onClick={() => setTheme('light')} />}
+// ...
+```
+
+### 3. 应用主题样式
+
+主题的视觉效果是通过 CSS 自定义属性 (CSS Variables) 来实现的。
+
+1.  **动态设置属性**:
+    当主题状态改变时（即 `setTheme`被调用后，`PlaygroundContext` 中的 `theme` 更新），应用的最外层组件（通常是 `App.tsx` 或直接在 `body`、`html` 标签上）需要监听这个变化，并相应地在 DOM 的根元素（如 `document.documentElement` 或 `document.body`）上设置一个属性，例如 `data-theme`。
+
+    ```tsx
+    // 示例：在你的主 App 组件或 Context Provider 监听 theme 变化
+    // useEffect(() => {
+    //   document.documentElement.setAttribute('data-theme', theme);
+    // }, [theme]);
+    ```
+
+2.  **CSS 定义**:
+    在全局 CSS 文件 (如 `src/App.scss` 或一个专门的 `themes.scss`) 中，你可以根据 `data-theme` 属性来定义不同主题下的 CSS 自定义属性值。
+
+    ```scss
+    /* src/App.scss 或 themes.scss */
+    :root { /* 或者 html[data-theme="light"] */
+      --primary-bg-color: #ffffff;
+      --primary-text-color: #333333;
+      --component-bg-color: #f0f0f0;
+      /* ... 其他浅色主题变量 ... */
+    }
+    
+    html[data-theme="dark"] {
+      --primary-bg-color: #333333;
+      --primary-text-color: #ffffff;
+      --component-bg-color: #424242;
+      /* ... 其他深色主题变量 ... */
+    
+      /* 例如，Message 组件使用的变量在暗色主题下的定义 */
+      /* .msg.error (在 Message/index.module.scss 中定义了基础的 --color 和 --bg-color) */
+      /* 如果需要全局覆盖，可以在这里重新定义，或者让组件的 SCSS 优先 */
+    }
+    ```
+    *注意: `Message/index.module.scss` 中已经为 `.error` 和 `.warn` 定义了独立的 `--color` 和 `--bg-color`。如果这些颜色也需要随主题变化，那么这些变量的定义也需要考虑主题上下文，或者 `Message` 组件自身通过 `theme` prop（如果传递给它）来动态调整。目前 `Message` 组件的SCSS中定义的 `--color` 和 `--bg-color` 是固定的，不直接响应 `data-theme`。若要使其响应，这些变量也应在全局主题中定义，或者 `Message` 组件的样式需要更复杂的选择器来适配主题。*
+
+
+3.  **组件中使用**:
+    各个组件的 SCSS 文件 (如 `src/ReactPlayground/components/Message/index.module.scss`) 通过 `var(--variable-name)` 来使用这些全局定义的主题颜色。
+
+    ```scss
+    // src/ReactPlayground/components/Message/index.module.scss
+    .msg {
+      color: var(--primary-text-color); // 示例，实际用的是 --color
+      background-color: var(--component-bg-color); // 示例，实际用的是 --bg-color
+      border-color: var(--primary-text-color); // 示例，实际用的是 --color
+    
+      // 组件内部为 error 和 warn 类型定义了独立的 --color 和 --bg-color
+      // 这些是局部的，优先级高于从 :root 或 html[data-theme] 继承的同名变量（如果存在）
+      // 如果希望这些也受主题控制，其定义应移至全局主题配置中
+      &.error {
+        --color: #f56c6c; // 在任何主题下都是红色系
+        --bg-color: #fef0f0; // 在任何主题下都是浅红色系
+      }
+      // ...
+    }
+    ```
+
+通过这种机制，当主题切换时，`data-theme` 属性发生变化，从而使得页面上所有使用这些 CSS 自定义属性的元素的样式都能自动更新，实现主题的平滑切换。
 
 
 
+# 将Babel编译过程从主线程转移至Web Worker
+
+我们可以通过性能分析看出来，这个babelTransform还是比较消耗性能的，所以它不应该一直占用主线程，导致渲染的体感很差:
+![image-20250514113841383](D:\HeinrichHu\resource\react-sandboxer\README.assets\image-20250514113841383.png)
+
+从代码性能分析可以看出，通过Babel进行代码编译是一个CPU密集型任务，直接在主线程执行会导致以下问题：
+
+1. 阻塞UI渲染 - 主线程负责DOM渲染，编译过程会导致界面卡顿
+2. 降低用户体验 - 代码编辑时实时编译会使编辑体验变差
+3. 浪费多核性能 - 现代设备普遍是多核心的，而主线程只能用单核
+
+因此，我们将Babel编译任务从主线程抽离，放到一个独立的Web Worker线程中处理。
+
+## Web Worker 基本原理
+
+Web Worker 是在浏览器后台运行的 JavaScript 脚本，独立于主执行线程。这使得你可以在不影响用户界面的前提下执行复杂的计算或长时间运行的任务。
+
+**核心特性：**
+
+*   **独立线程**：Worker 在一个与主线程（通常是 UI 线程）分离的操作系统级别线程中运行。这意味着 Worker 内的代码不会阻塞主线程。
+*   **无 DOM 访问**：Worker 无法直接访问或操作主页面的 DOM 结构（`window`、`document` 对象等）。这是为了防止线程冲突和不一致性。如果需要更新 UI，Worker 必须通过消息机制通知主线程来完成。
+*   **消息传递机制**：主线程和 Worker 之间通过异步消息传递进行通信。
+    *   `postMessage()`: 用于发送数据。可以发送 JavaScript 对象（会被序列化和反序列化，意味着数据是复制传递的，不是共享引用，除非使用 `Transferable Objects` 如 `ArrayBuffer`）。
+    *   `onmessage` 事件处理函数或 `addEventListener('message', ...)`: 用于接收数据。事件对象的 `data` 属性包含发送过来的数据。
+*   **独立作用域**：Worker 有自己的全局作用域，通常通过 `self` 关键字访问。它拥有大部分浏览器提供的 JavaScript API（如 `XMLHttpRequest`、`fetch`、`setTimeout`、`IndexedDB` 等），但不能使用 `alert` 或 `confirm` 这类直接与 UI 交互的 API。
+*   **生命周期**：Worker 可以被主线程创建 (`new Worker()`) 和终止 (`worker.terminate()`)。
+
+## 实现步骤
+
+### 1. 创建 Worker 脚本 (`compiler.worker.ts`)
+
+我们将原先在主线程执行的 `compile` 函数及其相关辅助函数（如 `babelTransform`, `customResolver`, `getModuleFile`, `css2Js`, `json2Js`, `beforeTransformCode`）完整地移动到 `src/ReactPlayground/components/Preview/compiler.worker.ts` 文件中。
+
+在该文件的末尾，我们添加了与主线程通信的逻辑：
+
+```typescript
+// src/ReactPlayground/components/Preview/compiler.worker.ts
+
+// ... (所有编译相关的函数定义) ...
+
+/**
+ * 监听来自主线程的消息。
+ * 当主线程通过 postMessage 发送数据时，此事件监听器会被触发。
+ * 'filesToCompile' (解构自事件对象 event.data) 是主线程发送过来的实际数据，这里期望是 files 对象。
+ */
+self.addEventListener("message", async ({ data: filesToCompile }) => {
+  try {
+    // 调用原有的 compile 函数处理接收到的文件数据
+    const compiledCode = compile(filesToCompile);
+
+    // 将编译结果通过 postMessage 发送回主线程
+    self.postMessage({
+      type: "COMPILED_CODE", // 消息类型：表示编译成功
+      data: compiledCode,    // 编译后的代码字符串
+    });
+  } catch (e) {
+    // 如果在编译过程中发生错误，捕获错误并将其发送回主线程
+    self.postMessage({
+      type: "ERROR", // 消息类型：表示发生错误
+      error: e,      // 错误对象 (注意：直接传递 Error 对象可能导致部分信息丢失，通常传递 e.message 和 e.stack)
+    });
+  }
+});
+```
+
+### 2. 在主线程 (`Preview/index.tsx`) 中管理和使用 Worker
+
+在 `Preview` 组件中，我们进行如下修改：
+
+*   **导入 Worker**：Vite 提供了特殊的导入语法 `?worker`，它会将指定文件作为 Worker 来处理和打包。
+    
+    ```typescript
+    import CompilerWorker from "./compiler.worker?worker";
+    ```
+*   **实例化和管理 Worker**：
+    *   使用 `useRef` 来持有 Worker 实例，确保在组件的生命周期内 Worker 实例是稳定的，避免不必要的重复创建。
+    *   在 `useEffect` (仅在组件挂载时运行一次) 中创建 Worker 实例。
+    *   添加事件监听器以接收来自 Worker 的消息。
+*   **与 Worker 通信**：
+    *   当 `files` 状态（包含用户代码的文件对象）发生变化时，通过 `worker.postMessage(files)` 将数据发送给 Worker 进行编译。这里使用了 `debounce` 来避免过于频繁的消息发送。
+    *   Worker 完成编译后，会通过 `self.postMessage({...})` 将结果（编译后的代码或错误信息）发送回主线程。
+    *   主线程的事件监听器接收到消息后，根据消息类型更新 `compiledCode` 或 `error` 状态。
+
+```typescript
+// src/ReactPlayground/components/Preview/index.tsx (相关片段)
+
+import { useContext, useEffect, useRef, useState } from "react";
+import { PlaygroundContext } from "../../PlaygroundContext";
+// 使用Vite特有的导入语法，将TypeScript文件作为Worker导入
+import CompilerWorker from "./compiler.worker?worker";
+// ... 其他导入 ...
+import { debounce } from "lodash";
+
+export default function Preview() {
+  const { files } = useContext(PlaygroundContext);
+  const [compiledCode, setCompiledCode] = useState("");
+  const [error, setError] = useState("");
+  // ... iframeUrl state 和 handleMessage for iframe errors ...
+
+  // 使用useRef保存Worker实例，确保它在组件生命周期内保持一致
+  const compilerWorkerRef = useRef<Worker>();
+
+  useEffect(() => {
+    // 仅在 worker 实例尚未创建时执行
+    if (!compilerWorkerRef.current) {
+      // 创建 Web Worker 实例
+      compilerWorkerRef.current = new CompilerWorker();
+
+      // 监听 Worker 发回的消息
+      compilerWorkerRef.current.addEventListener("message", (event) => {
+        const messageFromWorker = event.data; // event.data 包含 Worker 发送的实际数据
+        console.log("Message received from worker:", messageFromWorker);
+
+        if (messageFromWorker.type === "COMPILED_CODE") {
+          setCompiledCode(messageFromWorker.data);
+          setError(''); // 清除之前的错误
+        } else if (messageFromWorker.type === "ERROR") {
+          console.error("Worker compilation error:", messageFromWorker.error);
+          // 最好传递错误消息字符串，而不是整个错误对象
+          setError(messageFromWorker.error?.message || "Worker compilation failed");
+        }
+      });
+
+      // 可选：组件卸载时终止 Worker
+      // return () => {
+      //   compilerWorkerRef.current?.terminate();
+      // };
+    }
+  }, []); // 空依赖数组确保此 effect 仅在组件挂载时运行一次
+
+  // 当files变化时，发送给Worker处理
+  useEffect(
+    debounce(() => {
+      if (compilerWorkerRef.current && files) {
+        compilerWorkerRef.current.postMessage(files);
+      }
+    }, 500),
+    [files]
+  );
+
+  // ... (getIframeUrl 和其他 useEffect 逻辑) ...
+
+  return (
+    // ... JSX for iframe and Message component ...
+  );
+}
+```
+
+通过以上步骤，Babel 编译过程就被成功地从主线程转移到了 Web Worker 中，从而显著提升了应用的响应性和用户体验。主线程现在可以专注于 UI 更新和用户交互，而繁重的编译任务则在后台异步执行。
 
 
 
+## new CompilerWorker()
 
+核心原因在于 Vite (或其他类似构建工具) 对 ?worker 后缀的特殊处理。
 
+让我们拆解一下：
 
+1. compiler.worker.ts 文件的本质：
 
+你观察得很对，src/ReactPlayground/components/Preview/compiler.worker.ts 文件本身导出了 compile、babelTransform 等函数。如果它是一个普通的 TypeScript 模块，我们确实会像这样导入和使用它的导出：
 
+```typescript
+    // 如果是普通模块导入
+    import * as CompilerUtils from './compiler.worker';
+    // 然后使用 CompilerUtils.compile(...);
+```
 
+但它并不是被当作普通模块来使用的。
 
+1. 关键的导入语句 `import CompilerWorker from "./compiler.worker?worker";`
 
+在 src/ReactPlayground/components/Preview/index.tsx 文件中，你是这样导入的：
 
+```typescript
+    import CompilerWorker from "./compiler.worker?worker";
+```
 
+这里的 ?worker 后缀是关键。它不是 TypeScript 或 JavaScript 的标准语法，而是 Vite 提供的一个特殊导入查询参数。
 
+2. **?worker 的作用：**
 
+当 Vite 看到 ?worker 后缀时，它会做以下几件事情：
+
+- 将指定的文件 (./compiler.worker.ts) 视为一个 Web Worker 入口点。
+
+- **为这个 Worker 单独构建和打包。 这意味着 compiler.worker.ts 及其内部的导入会形成一个独立的 JavaScript 文件，这个文件将被加载到一个新的 Worker 线程中。**
+
+- `import CompilerWorker from ...` 语句的行为改变了。 此时，CompilerWorker 这个变量不再是 compiler.worker.ts 文件中导出的对象 (包含 compile 等函数)。相反，Vite 会让 CompilerWorker 成为一个构造函数 (Class)。
+
+3. **new CompilerWorker() 的含义：**
+
+因为 Vite 将 CompilerWorker 转换成了一个构造函数，所以你可以而且必须使用 new CompilerWorker() 来：
+
+- 创建一个新的 Web Worker 实例。
+
+- 浏览器会加载为 Worker 打包好的独立脚本，并在一个新的后台线程中执行它。
+
+- compiler.worker.ts 文件中的顶层代码（包括 self.addEventListener("message", ...)）会在这个新的 Worker 线程中执行。
+
+总结一下：
+
+你不能直接 new 一个导出了多个函数的文件。但是，**由于 Vite 的 ?worker 魔法，CompilerWorker 在你的主线程代码 (Preview/index.tsx) 中被赋予了一个特殊的角色：它变成了一个由 Vite 提供的、用于实例化和启动 Web Worker 的构造函数。**
+
+**这个构造函数封装了创建 Worker、加载其脚本以及建立通信渠道的底层细节。所以，new CompilerWorker() 实际上是在告诉浏览器：“请启动一个新的 Worker 线程，并运行 compiler.worker.ts 里面定义的逻辑。”**
+
+这就是为什么尽管 compiler.worker.ts 文件看起来只是导出了一些函数，但你却能通过 new CompilerWorker() 来创建一个 Worker 实例。这是构建工具为了简化 Web Worker 使用而提供的一层抽象。
+
+## 总结
+
+将Babel编译从主线程转移到Web Worker的核心步骤包括：
+
+1.  **创建 `compiler.worker.ts`**：将所有Babel编译相关的逻辑（`compile`函数及其依赖）放入此文件。
+2.  **Worker内部通信**：在`compiler.worker.ts`末尾使用`self.addEventListener('message', ...)`接收主线程数据，并通过`self.postMessage({...})`将编译结果或错误发回。
+3.  **主线程集成 (`Preview/index.tsx`)**：
+    *   使用 `import CompilerWorker from './compiler.worker?worker'` 导入Worker。
+    *   在`useEffect`中创建`new CompilerWorker()`实例，并用`useRef`保存。
+    *   通过`compilerWorkerRef.current.addEventListener('message', ...)`监听Worker返回的消息，更新UI状态。
+    *   在`files`变化时，通过`compilerWorkerRef.current.postMessage(files)`（通常配合`debounce`）将数据发送给Worker。
+
+这种模式有效地利用了浏览器的多线程能力，避免了CPU密集型任务对主线程的阻塞，从而提高了React应用的性能和流畅度。
 
 
 

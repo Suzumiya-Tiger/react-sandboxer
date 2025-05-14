@@ -1,15 +1,17 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { PlaygroundContext } from "../../PlaygroundContext";
-import { compile } from "./compiler";
-
+// 使用Vite特有的导入语法，将TypeScript文件作为Worker导入
+import CompilerWorker from "./compiler.worker?worker";
 import iframeRaw from "./iframe.html?raw";
 import { IMPORT_MAP_FILE_NAME } from "../../files";
 import { Message } from "../Message";
+import { debounce } from "lodash";
+
 interface MessageData {
   data: {
-    type: string
-    message: string
-  }
+    type: string;
+    message: string;
+  };
 }
 /**
  * Preview 组件负责编译用户代码并在 iframe 中展示实时预览。
@@ -18,25 +20,59 @@ export default function Preview() {
   const { files } = useContext(PlaygroundContext);
   const [compiledCode, setCompiledCode] = useState("");
   const [iframeUrl, setIframeUrl] = useState("");
-  const [error, setError] = useState('')
+  const [error, setError] = useState("");
 
   const handleMessage = (msg: MessageData) => {
-    const { type, message } = msg.data
-    if (type === 'ERROR') {
-      setError(message)
+    const { type, message } = msg.data;
+    if (type === "ERROR") {
+      setError(message);
     }
-  }
+  };
   useEffect(() => {
-    window.addEventListener('message', handleMessage)
+    window.addEventListener("message", handleMessage);
     return () => {
-      window.removeEventListener('message', handleMessage)
-    }
-  }, [])
-  useEffect(() => {
-    const res = compile(files);
-    setCompiledCode(res);
-  }, [files]);
+      window.removeEventListener("message", handleMessage);
+    };
+  }, []);
+  // 废除占用主线程babel编译的模式
+  /*   useEffect(() => {
+        const res = compile(files);
+    setCompiledCode(res); 
+  }, [files]); */
 
+  // 使用useRef保存Worker实例，确保它在组件生命周期内保持一致
+  const compilerWorkerRef = useRef<Worker>();
+  useEffect(() => {
+    if (!compilerWorkerRef.current) {
+      // 创建Worker实例
+      compilerWorkerRef.current = new CompilerWorker();
+      // 监听Worker发回的消息
+      compilerWorkerRef.current.addEventListener("message", event => {
+        const messageFromWorker = event.data;
+        console.log("Message received from worker:", messageFromWorker);
+
+        if (messageFromWorker.type === "COMPILED_CODE") {
+          setCompiledCode(messageFromWorker.data);
+          setError("");
+        } else if (messageFromWorker.type === "ERROR") {
+          console.error("Worker compilation error:", messageFromWorker.error);
+          setError(
+            messageFromWorker.error?.message || "Worker compilation failed"
+          );
+        }
+      });
+    }
+  }, []);
+
+  // 当files变化时，发送给Worker处理
+  useEffect(
+    debounce(() => {
+      if (compilerWorkerRef.current && files) {
+        compilerWorkerRef.current.postMessage(files);
+      }
+    }, 500),
+    [files]
+  );
   // 函数：生成 iframe 的 HTML 内容并为其创建一个 Blob URL
   const getIframeUrl = () => {
     // 1. 准备 iframe 的 HTML 内容
@@ -47,7 +83,8 @@ export default function Preview() {
         // 动态生成 import map script 标签。
         // files[IMPORT_MAP_FILE_NAME]?.value 获取 import-map.json 文件的内容。
         // ?.value 是可选链，如果文件不存在或 value 为空，则使用 || "{}" 作为备选（一个空的 JSON 对象）。
-        `<script type="importmap">${files[IMPORT_MAP_FILE_NAME]?.value || "{}"
+        `<script type="importmap">${
+          files[IMPORT_MAP_FILE_NAME]?.value || "{}"
         }</script>`
       )
       .replace(
@@ -103,19 +140,6 @@ export default function Preview() {
     // 使用 ?.value 是为了确保只有在 import map 的实际内容变化时才触发，而不仅仅是文件对象引用的变化。
   }, [files[IMPORT_MAP_FILE_NAME]?.value, compiledCode]);
 
-  useEffect(() => {
-    if (files[IMPORT_MAP_FILE_NAME] && compiledCode) {
-      const newUrl = getIframeUrl();
-      setIframeUrl(newUrl);
-    }
-
-    return () => {
-      if (iframeUrl) {
-        URL.revokeObjectURL(iframeUrl);
-      }
-    };
-  }, [files[IMPORT_MAP_FILE_NAME]?.value, compiledCode]);
-
   return (
     <div style={{ height: "100%" }}>
       <iframe
@@ -129,7 +153,7 @@ export default function Preview() {
         sandbox="allow-scripts allow-same-origin"
         title="Preview"
       />
-      <Message type='error' content={error} />
+      <Message type="error" content={error} />
     </div>
   );
 }

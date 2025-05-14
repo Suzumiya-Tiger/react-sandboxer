@@ -9,10 +9,14 @@
 
 <body>
   <script>
+    // 监听全局的 'error' 事件，这会在 iframe 内部发生未捕获的 JavaScript 错误时触发
     window.addEventListener('error', (e) => {
+      // 当错误发生时，通过 window.parent.postMessage 向父窗口发送消息
       window.parent.postMessage({
-        type:'ERROR',message:e.message
-      })
+        type: 'ERROR',        // 消息类型，表明这是一个错误信息
+        message: e.message    // 具体的错误消息内容
+      }, '*')                // targetOrigin 设置为 '*' 表示允许发送到任意源的父窗口
+      // 在生产环境中，为了安全，应指定确切的父窗口源
     })
   </script>
   <script type="importmap"></script>
